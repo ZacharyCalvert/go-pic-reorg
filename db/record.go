@@ -36,6 +36,7 @@ type MediaRecord struct {
 	ShaKey     string   `yaml:"sha256"`
 	Extensions []string `yaml:"extensions"`
 	Earliest   int64    `yaml:"earliestDate"`
+	Paths      []string `yaml:"paths"`
 }
 
 func (rec MediaRecord) GetDate() time.Time {
