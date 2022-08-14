@@ -37,6 +37,9 @@ type MediaRecord struct {
 	Extensions []string `yaml:"extensions"`
 	Earliest   int64    `yaml:"earliestDate"`
 	Paths      []string `yaml:"paths"`
+	Ignore     *bool    `yaml:"ignore"`
+	Reviewed   *bool    `yaml:"reviewDone"`
+	Tags       []string `yaml:"tags"`
 }
 
 func (rec MediaRecord) GetDate() time.Time {
