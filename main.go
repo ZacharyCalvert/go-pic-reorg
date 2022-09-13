@@ -19,7 +19,15 @@ func main() {
 	parseFlags(&dryRun, &managed, &target)
 	records := loadRecordDatabase(managed)
 	validateDatabase(managed, records)
-	fmt.Printf("Record count: %d", len(records))
+	validateTarget(target)
+}
+
+func validateTarget(target string) {
+	_, err := os.Stat(target)
+	if !(err != nil && errors.Is(err, os.ErrNotExist)) {
+		fmt.Printf("Target directory %s must not exist", target)
+		os.Exit(1)
+	}
 }
 
 func validateDatabase(managed string, records map[string]db.MediaRecord) {
