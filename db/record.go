@@ -34,6 +34,7 @@ import "time"
 
 type MediaRecord struct {
 	ShaKey     string   `yaml:"sha256"`
+	StoredAt   string   `yaml:"storedAt"`
 	Extensions []string `yaml:"extensions"`
 	Earliest   int64    `yaml:"earliestDate"`
 	Paths      []string `yaml:"paths"`
