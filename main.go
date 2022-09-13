@@ -43,7 +43,7 @@ func validateDatabase(managed string, records map[string]db.MediaRecord) {
 		if details, err := os.Stat(src); err != nil {
 			panic(err)
 		} else if details.IsDir() {
-			panic(errors.New("Record %s is indicating a directory instead of a file at %s", id, src))
+			panic(errors.New(fmt.Sprintf("Record %s is indicating a directory instead of a file at %s", id, src)))
 		}
 	}
 }
