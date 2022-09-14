@@ -24,7 +24,7 @@ func main() {
 	validateDatabase(managed, records)
 	validateTarget(target)
 	mover := move.BuildMover(target, records)
-	mover.PerformMove(dryRun)
+	mover.PerformMove(managed, dryRun)
 }
 
 func validateTarget(target string) {

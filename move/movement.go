@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ZacharyCalvert/go-pic-reorg/db"
@@ -16,7 +17,7 @@ import (
 // resulting names and rebuild to avoid collision
 
 type Mover interface {
-	PerformMove(dryRun bool)
+	PerformMove(currentManaged string, dryRun bool)
 }
 
 type id string
@@ -44,12 +45,12 @@ func BuildMover(target string, records map[string]db.MediaRecord) Mover {
 			continue
 		}
 		iteration := 0
-		dest := generateDestFileName(rec.Earliest, rec.Paths[0], iteration)
+		dest := generateDestFileName(rec.GetDate(), rec.Paths[0], iteration)
 
 		// iterate until planned file path does not collide with existing planned destination
 		for _, collides := destToID[dest]; collides; {
 			iteration++
-			dest = generateDestFileName(rec.Earliest, rec.Paths[0], iteration)
+			dest = generateDestFileName(rec.GetDate(), rec.Paths[0], iteration)
 			_, collides = destToID[dest]
 		}
 		idToDest[id(sha)] = dest
@@ -58,19 +59,22 @@ func BuildMover(target string, records map[string]db.MediaRecord) Mover {
 	return mover{records: records, idToDestination: idToDest, destinationsToID: destToID, target: target}
 }
 
-func (m mover) PerformMove(dryRun bool) {
+func (m mover) PerformMove(currentManaged string, dryRun bool) {
 	for shaKey, record := range m.records {
 		if record.IsIgnoredMedia() {
 			continue
 		}
-		from := record.StoredAt
-		dest, ok := m.idToDestination[id(shaKey)]
+		relativeFrom := record.StoredAt
+		relativeDest, ok := m.idToDestination[id(shaKey)]
+		from := filepath.Join(currentManaged, relativeFrom)
+		dest := filepath.Join(m.target, relativeDest)
 		if !ok {
 			panic(fmt.Errorf("No destination planned for %s, currently stored at %s", shaKey, from))
 		}
 		if dryRun {
-			fmt.Printf("Would move %s to %s.\n", from, dest)
+			fmt.Printf("Would move %s to %s for %d of time %v.\n", from, dest, record.Earliest, record.GetDate())
 		} else {
+			os.MkdirAll(filepath.Dir(dest), os.ModePerm)
 			err := os.Rename(from, dest)
 			if err != nil {
 				panic(fmt.Errorf("Error moving %s to %s: %v", from, dest, err))
@@ -82,27 +86,36 @@ func (m mover) PerformMove(dryRun bool) {
 	outYML, err := yaml.Marshal(outDB)
 	if err == nil {
 		dbDest := filepath.Join(m.target, "pic-man.db")
-		if dryRun {
-			fmt.Printf("Database YML for %s:\n%s", dbDest, string(outYML))
-		} else {
-			os.WriteFile(dbDest, outYML, 644)
+		if !dryRun {
+			os.WriteFile(dbDest, outYML, 0644)
 		}
 	} else {
 		panic(fmt.Errorf("Could not prepare database yaml: %v", err))
 	}
 }
 
-func generateDestFileName(unixTime int64, previousPath string, iteration int) string {
-	date := time.Unix(0, unixTime*int64(time.Nanosecond)).UTC()
+func generateDestFileName(date time.Time, previousPath string, iteration int) string {
 	year, month, day := date.Date()
-	base := filepath.Base(previousPath)
+	importedFrom := forceSeparatorConsistency(previousPath)
+	base := filepath.Base(importedFrom)
+	parentDir := filepath.Base(filepath.Dir(importedFrom))
+	relativeDir := fmt.Sprintf("%d/%02d/%02d", year, int(month), day)
+	if parentDir != "" {
+		relativeDir = fmt.Sprintf("%d/%02d/%02d/%s", year, int(month), day, parentDir)
+	}
 	if iteration == 0 {
-		return fmt.Sprintf("%d/%02d/%02d/%s", year, int(month), day, base)
+		return fmt.Sprintf("%s/%s", relativeDir, base)
 	}
 	ext := filepath.Ext(previousPath)
 	if len(ext) > 0 {
-		return fmt.Sprintf("%d/%02d/%02d/%s_%d%s", year, int(month), day, base[:len(base)-len(ext)], iteration, ext)
+		return fmt.Sprintf("%s/%s_%d%s", relativeDir, base[:len(base)-len(ext)], iteration, ext)
 	} else {
-		return fmt.Sprintf("%d/%02d/%02d/%s_%d", year, int(month), day, filepath.Base(previousPath), iteration)
+		return fmt.Sprintf("%s/%s_%d", relativeDir, filepath.Base(previousPath), iteration)
 	}
+}
+
+func forceSeparatorConsistency(path string) string {
+	path = strings.ReplaceAll(path, "/", fmt.Sprintf("%c", os.PathSeparator))
+	path = strings.ReplaceAll(path, "\\", fmt.Sprintf("%c", os.PathSeparator))
+	return path
 }

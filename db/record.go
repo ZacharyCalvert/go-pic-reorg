@@ -44,7 +44,7 @@ type MediaRecord struct {
 }
 
 func (rec MediaRecord) GetDate() time.Time {
-	return time.Unix(0, rec.Earliest*int64(time.Millisecond))
+	return time.Unix(rec.Earliest/1000, 0)
 }
 
 func (rec MediaRecord) IsIgnoredMedia() bool {
