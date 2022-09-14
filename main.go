@@ -9,17 +9,22 @@ import (
 	"path/filepath"
 
 	"github.com/ZacharyCalvert/go-pic-reorg/db"
+	"github.com/ZacharyCalvert/go-pic-reorg/move"
 	"gopkg.in/yaml.v3"
 )
 
 func main() {
-
 	var dryRun bool
 	var managed, target string
 	parseFlags(&dryRun, &managed, &target)
+	if dryRun {
+		fmt.Printf("This is a dry run - no changes will be applied\n")
+	}
 	records := loadRecordDatabase(managed)
 	validateDatabase(managed, records)
 	validateTarget(target)
+	mover := move.BuildMover(target, records)
+	mover.PerformMove(dryRun)
 }
 
 func validateTarget(target string) {
@@ -47,11 +52,14 @@ func validateDatabase(managed string, records map[string]db.MediaRecord) {
 	}
 
 	for id, rec := range records {
+		if rec.IsIgnoredMedia() {
+			continue
+		}
 		src := filepath.Join(managed, rec.StoredAt)
 		if details, err := os.Stat(src); err != nil {
 			panic(err)
 		} else if details.IsDir() {
-			panic(errors.New(fmt.Sprintf("Record %s is indicating a directory instead of a file at %s", id, src)))
+			panic(errors.New(fmt.Sprintf("Record %s is indicating a directory instead of a file at %s, indicating it is stored at %s", id, src, rec.StoredAt)))
 		}
 	}
 }

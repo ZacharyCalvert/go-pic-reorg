@@ -38,11 +38,15 @@ type MediaRecord struct {
 	Extensions []string `yaml:"extensions"`
 	Earliest   int64    `yaml:"earliestDate"`
 	Paths      []string `yaml:"paths"`
-	Ignore     *bool    `yaml:"ignore"`
-	Reviewed   *bool    `yaml:"reviewDone"`
+	Ignore     *bool    `yaml:"ignore,omitempty"`
+	Reviewed   *bool    `yaml:"reviewDone,omitempty"`
 	Tags       []string `yaml:"tags"`
 }
 
 func (rec MediaRecord) GetDate() time.Time {
 	return time.Unix(0, rec.Earliest*int64(time.Millisecond))
+}
+
+func (rec MediaRecord) IsIgnoredMedia() bool {
+	return rec.Reviewed != nil && *rec.Reviewed && rec.Ignore != nil && *rec.Ignore
 }
